@@ -1,51 +1,62 @@
 import heapq
-
+from maze import is_valid_position
 class Node:
-    def __init__(self, x, y):
+    def __init__(self, x, y, g=0, h=0, parent=None):
         self.x = x
         self.y = y
-        self.g = 0  # 实际代价
-        self.h = 0  # 启发函数
-        self.f = 0  # 总代价
-        self.parent = None
+        self.g = g  # 实际代价
+        self.h = h  # 启发式估计值（曼哈顿距离）
+        self.f = g + h  # f = g + h
+        self.parent = parent
 
     def __lt__(self, other):
         return self.f < other.f
 
 def a_star(maze, start, end):
-    """实现 A* 算法"""
+    """使用 A* 算法找出从 start 到 end 的最短路径"""
+    if not is_valid_position(maze, start[0], start[1]):
+        print("Start position is invalid.")
+        return None
+    if not is_valid_position(maze, end[0], end[1]):
+        print("End position is invalid.")
+        return None
+
+    if start == end:
+        return [start]
+
     open_list = []
     closed_list = set()
-    start_node = Node(start[0], start[1])
-    end_node = Node(end[0], end[1])
 
+    # 起点加入打开列表
+    start_node = Node(start[0], start[1])
     heapq.heappush(open_list, start_node)
 
     while open_list:
-        current = heapq.heappop(open_list)
-        if current == end_node:
-            return reconstruct_path(current)
+        current_node = heapq.heappop(open_list)
+        closed_list.add((current_node.x, current_node.y))
 
-        closed_list.add((current.x, current.y))
+        if (current_node.x, current_node.y) == (end[0], end[1]):
+            path = []
+            while current_node:
+                path.append((current_node.y, current_node.x))  # (y, x) 是 path 的坐标格式
+                current_node = current_node.parent
+            return path[::-1]  # 反转路径，从起点到终点
 
-        for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
-            next_x = current.x + dx
-            next_y = current.y + dy
+        # 遍历四个相邻格子（上下左右）
+        neighbors = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+        for dx, dy in neighbors:
+            x, y = current_node.x + dx, current_node.y + dy
 
-            if is_valid_position(maze, next_x, next_y) and (next_x, next_y) not in closed_list:
-                next_node = Node(next_x, next_y)
-                next_node.g = current.g + 1
-                next_node.h = abs(next_x - end_node.x) + abs(next_y - end_node.y)  # 曼哈顿距离
-                next_node.f = next_node.g + next_node.h
-                next_node.parent = current
-                heapq.heappush(open_list, next_node)
+            if not is_valid_position(maze, x, y) or (x, y) in closed_list:
+                continue
 
-    return None  # 没有找到路径
+            neighbor_node = Node(x, y)
+            neighbor_node.g = current_node.g + 1
+            neighbor_node.h = abs(x - end[0]) + abs(y - end[1])  # 曼哈顿距离
+            neighbor_node.f = neighbor_node.g + neighbor_node.h
+            neighbor_node.parent = current_node
 
-def reconstruct_path(node):
-    """回溯路径"""
-    path = []
-    while node:
-        path.append((node.x, node.y))
-        node = node.parent
-    return path[::-1]
+            if (x, y) not in closed_list:
+                heapq.heappush(open_list, neighbor_node)
+
+    return None
